@@ -1,0 +1,37 @@
+# Local Forge install/runtime state
+libraries/
+defaultconfigs/
+world/
+logs/
+crash-reports/
+backups/
+release/
+tmp-release/
+
+# Player/server generated data
+banned-ips.json
+banned-players.json
+ops.json
+usercache.json
+usernamecache.json
+whitelist.json
+journeymap/
+
+# Installer leftovers
+*-installer.jar
+*.log
+*.zip
+
+# Docker runtime data
+data/
+docker/
+bin/
+playit.log
+tools/
+mods-disabled/
+crafty-installer-4.0/
+/minecraft/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

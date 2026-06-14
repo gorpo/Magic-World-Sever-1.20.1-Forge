@@ -1,0 +1,4 @@
+# Xmx and Xms set the maximum and minimum RAM usage.
+# Adjust these values if the machine has little RAM available.
+-Xms2G
+-Xmx4G

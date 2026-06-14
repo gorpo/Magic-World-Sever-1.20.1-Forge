@@ -1,0 +1,20 @@
+{
+  "name": "Magic World Server 1.20.1 Forge",
+  "image": "mcr.microsoft.com/devcontainers/java:1-17-bullseye",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [25565],
+  "portsAttributes": {
+    "25565": {
+      "label": "Minecraft Forge",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "bash scripts/setup-forge.sh && bash scripts/install-playit.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  }
+}

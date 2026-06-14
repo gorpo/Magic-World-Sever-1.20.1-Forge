@@ -1,0 +1,14 @@
+services:
+  minecraft:
+    build: .
+    container_name: magic-world-server
+    restart: unless-stopped
+    ports:
+      - "25565:25565/tcp"
+    environment:
+      EULA: "false"
+    volumes:
+      - ./data/world:/server/world
+      - ./data/logs:/server/logs
+      - ./mods:/server/mods
+      - ./config:/server/config
