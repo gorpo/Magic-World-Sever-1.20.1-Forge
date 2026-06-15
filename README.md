@@ -41,7 +41,6 @@ https://github.com/gorpo/Magic-World_ultimate-Forge1.20.1
 Esse repo do cliente contem o pacote que completa este servidor:
 
 - `Magic_World_Mod_1.20.1-1.0.0.1.jar`
-- `MagicWorldLight-Forge1.20.1-1.0.0.jar`
 - Resource packs principais:
   - `MagicWorldResource_1.20.1-256x.zip`
   - `MagicWorldResource_1.20.1-addon.zip`
@@ -512,7 +511,6 @@ Verifique se cliente e servidor possuem os mesmos mods obrigatorios.
 O pacote atual inclui:
 
 ```text
-MagicWorldLight-Forge1.20.1-1.0.0.jar
 Magic_World_Mod_1.20.1-1.0.0.1.jar
 ```
 
@@ -530,9 +528,17 @@ Abra `Configurar tunel`, faca login/claim no Playit e confirme que existe tunel 
 127.0.0.1:25565
 ```
 
+Quando o Playit detectar o tunel, o endereco publico tambem aparece em um campo copiavel no topo da area de logs, acima das telas de `Servidor`, `Playit status` e `Playit logs`.
+
 ### Servidor fica rodando sem eu ver
 
 O launcher foi feito para parar o servidor quando a janela principal fecha. Use sempre o botao `Parar servidor` ou feche o launcher principal.
+
+### Launcher piscando ou perdendo selecao
+
+O launcher atual usa buffer duplo e evita redesenhar logs/lista de jogadores quando nada mudou. A lista de jogadores preserva a selecao durante o refresh, entao os botoes `OP`, `Kick`, `Ban`, `Criativo`, `Survival` e `TP destino` continuam clicaveis mesmo com Playit ligado.
+
+O botao `TP destino` teleporta o jogador selecionado para o destino digitado no popup. O destino pode ser outro jogador ou coordenadas no formato `X Y Z`.
 
 ## Licencas e avisos
 

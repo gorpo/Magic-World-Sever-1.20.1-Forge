@@ -77,7 +77,6 @@ https://github.com/gorpo/Magic-World_ultimate-Forge1.20.1
 Esse pacote complementar contem:
 
 - `Magic_World_Mod_1.20.1-1.0.0.1.jar`
-- `MagicWorldLight-Forge1.20.1-1.0.0.jar`
 - `MagicWorldResource_1.20.1-256x.zip`
 - `MagicWorldResource_1.20.1-addon.zip`
 - `MagicWorldResource_1.20.1-bonus.zip`
@@ -93,6 +92,9 @@ Esse pacote complementar contem:
 - Java recomendado: `17`
 - O Playit e baixado/instalado pelo launcher quando usado.
 - Se o botao `Copiar endereco` nao retornar um dominio `joinmc.link`, confirme o claim/login no Playit.
+- Launcher recompilado com menos flicker: buffer duplo, refresh menos agressivo do Playit e lista de jogadores preservando selecao.
+- Endereco publico do Playit aparece em campo copiavel no topo da area de logs, com botao `Copiar`.
+- `TP destino` teleporta o jogador selecionado para outro jogador ou coordenadas `X Y Z` informadas no popup.
 
 ## Checksum
 

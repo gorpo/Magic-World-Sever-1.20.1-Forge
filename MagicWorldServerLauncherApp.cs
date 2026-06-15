@@ -8,6 +8,7 @@ using System.Linq;
 using System.Management;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Text;
 using System.Windows.Forms;
@@ -92,14 +93,18 @@ internal sealed class LauncherForm : Form
     private RichTextBox logBox;
     private RichTextBox playitStatusBox;
     private RichTextBox playitLogBox;
+    private TextBox playitAddressBox;
     private TextBox commandBox;
     private Button sendCommandButton;
     private Button startButton;
     private Button stopButton;
     private Button restartButton;
+    private ToolTip toolTip;
     private long lastShownLogLength = -1;
     private long lastShownPlayitLogLength = -1;
     private DateTime lastPlayerListRequest = DateTime.MinValue;
+    private string lastPlayersSignature = "";
+    private string lastPlayitStatusShown = "";
     private bool closingServer;
     private List<ItemEntry> itemCatalog;
     private const int MaxVisibleItems = 250;
@@ -123,7 +128,7 @@ internal sealed class LauncherForm : Form
         playitExePath = Path.Combine(playitRoot, "playit.exe");
         playitMsiPath = Path.Combine(playitRoot, "playit-installer.msi");
         playitLogPath = Path.Combine(serverRoot, @"logs\playit.log");
-        timer = new Timer { Interval = 2500 };
+        timer = new Timer { Interval = 3000 };
         timer.Tick += delegate { SafeRefreshUi(); };
 
         BuildWindow();
@@ -132,6 +137,7 @@ internal sealed class LauncherForm : Form
         logBox.Text = "Servidor parado. Os logs ao vivo aparecem aqui quando iniciar.";
         playitStatusBox.Text = "Playit: aguardando.";
         playitLogBox.Text = "Playit parado. Os logs do tunel aparecem aqui.";
+        UpdatePlayitAddressBox();
         Shown += delegate
         {
             SafeRefreshUi();
@@ -155,6 +161,14 @@ internal sealed class LauncherForm : Form
         Size = new Size(1180, 720);
         Font = new Font("Segoe UI", 9F);
         BackColor = Color.FromArgb(7, 18, 32);
+        toolTip = new ToolTip
+        {
+            AutomaticDelay = 250,
+            AutoPopDelay = 8000,
+            InitialDelay = 250,
+            ReshowDelay = 100,
+            ShowAlways = true
+        };
 
         if (File.Exists(iconPath))
         {
@@ -272,7 +286,8 @@ internal sealed class LauncherForm : Form
         var banButton = SmallActionButton("Ban", 176, 122, delegate { SendPlayerCommand("ban {0}"); });
         var creativeButton = SmallActionButton("Criativo", 12, 158, delegate { SendPlayerCommand("gamemode creative {0}"); });
         var survivalButton = SmallActionButton("Survival", 94, 158, delegate { SendPlayerCommand("gamemode survival {0}"); });
-        var teleportButton = SmallActionButton("Teleportar", 176, 158, delegate { TeleportSelectedPlayer(); });
+        var teleportButton = SmallActionButton("TP destino", 176, 158, delegate { TeleportSelectedPlayer(); });
+        toolTip.SetToolTip(teleportButton, "Teleporta o jogador selecionado para outro jogador ou coordenadas X Y Z.");
         playersPanel.Controls.Add(opButton);
         playersPanel.Controls.Add(kickButton);
         playersPanel.Controls.Add(banButton);
@@ -336,10 +351,24 @@ internal sealed class LauncherForm : Form
             BackColor = Color.Transparent,
             Padding = new Padding(18, 0, 0, 0)
         };
-        right.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        right.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
         right.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         right.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
         layout.Controls.Add(right, 1, 0);
+
+        var topBar = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            RowCount = 2,
+            ColumnCount = 2,
+            BackColor = Color.Transparent,
+            Padding = new Padding(0, 0, 0, 8)
+        };
+        topBar.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        topBar.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        topBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        topBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        right.Controls.Add(topBar, 0, 0);
 
         var title = new Label
         {
@@ -349,7 +378,29 @@ internal sealed class LauncherForm : Form
             ForeColor = Color.White,
             Font = new Font("Segoe UI", 14F, FontStyle.Bold)
         };
-        right.Controls.Add(title, 0, 0);
+        topBar.Controls.Add(title, 0, 0);
+        topBar.SetColumnSpan(title, 2);
+
+        playitAddressBox = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            ReadOnly = true,
+            BackColor = Color.FromArgb(6, 12, 22),
+            ForeColor = Color.FromArgb(220, 238, 255),
+            BorderStyle = BorderStyle.FixedSingle,
+            Font = new Font("Consolas", 9F),
+            Text = "Endereco Playit: aguardando deteccao"
+        };
+        toolTip.SetToolTip(playitAddressBox, "Endereco publico do Playit para compartilhar com jogadores fora da rede.");
+        topBar.Controls.Add(playitAddressBox, 0, 1);
+
+        var copyTopAddressButton = ActionButton("Copiar", false);
+        copyTopAddressButton.Dock = DockStyle.Fill;
+        copyTopAddressButton.Width = 104;
+        copyTopAddressButton.Height = 28;
+        copyTopAddressButton.Margin = new Padding(8, 0, 0, 0);
+        copyTopAddressButton.Click += delegate { CopyPlayitAddressOrOpenPanel(); SafeRefreshUi(); };
+        topBar.Controls.Add(copyTopAddressButton, 1, 1);
 
         var logSplit = new TableLayoutPanel
         {
@@ -465,13 +516,40 @@ internal sealed class LauncherForm : Form
         };
         commandPanel.Controls.Add(commandBox, 0, 0);
 
-        sendCommandButton = ActionButton("➤", true);
+        sendCommandButton = ActionButton("Enviar", true);
         sendCommandButton.Dock = DockStyle.Fill;
         sendCommandButton.Width = 120;
         sendCommandButton.Height = 30;
         sendCommandButton.Margin = new Padding(10, 0, 0, 0);
         sendCommandButton.Click += delegate { SendServerCommand(); };
         commandPanel.Controls.Add(sendCommandButton, 1, 0);
+
+        EnableDoubleBuffering(this);
+    }
+
+    private void EnableDoubleBuffering(Control control)
+    {
+        if (control == null)
+        {
+            return;
+        }
+
+        try
+        {
+            PropertyInfo property = typeof(Control).GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (property != null)
+            {
+                property.SetValue(control, true, null);
+            }
+        }
+        catch
+        {
+        }
+
+        foreach (Control child in control.Controls)
+        {
+            EnableDoubleBuffering(child);
+        }
     }
 
     private Label Header(string text)
@@ -644,8 +722,12 @@ internal sealed class LauncherForm : Form
         Process process = GetServerProcess();
         bool running = process != null && !process.HasExited;
         bool portOpen = IsPortOpen(ServerPort);
-        statusLabel.Text = running ? "Status: rodando" : "Status: parado";
-        statusLabel.ForeColor = running ? Color.FromArgb(88, 235, 151) : Color.FromArgb(255, 92, 111);
+        SetLabelText(statusLabel, running ? "Status: rodando" : "Status: parado");
+        Color statusColor = running ? Color.FromArgb(88, 235, 151) : Color.FromArgb(255, 92, 111);
+        if (statusLabel.ForeColor != statusColor)
+        {
+            statusLabel.ForeColor = statusColor;
+        }
 
         RequestPlayerListForStatus(running);
         List<string> players = GetOnlinePlayersFromLogs();
@@ -656,7 +738,7 @@ internal sealed class LauncherForm : Form
         string ramText = "RAM: " + (running ? FormatMemory(process.WorkingSet64) : "0 MB");
         string playersText = "Players: " + (running ? players.Count.ToString() : "0");
         string javaText = "Java: " + ShortJavaText();
-        detailsLabel.Text = portText + Environment.NewLine + uptimeText + Environment.NewLine + ramText + Environment.NewLine + playersText + Environment.NewLine + javaText;
+        SetLabelText(detailsLabel, portText + Environment.NewLine + uptimeText + Environment.NewLine + ramText + Environment.NewLine + playersText + Environment.NewLine + javaText);
 
         startButton.Enabled = !running;
         stopButton.Enabled = running;
@@ -708,9 +790,17 @@ internal sealed class LauncherForm : Form
             return;
         }
 
-        playersSummaryLabel.Text = running
+        SetLabelText(playersSummaryLabel, running
             ? players.Count + (players.Count == 1 ? " jogador online" : " jogadores online")
-            : "Servidor parado.";
+            : "Servidor parado.");
+
+        string selectedPlayer = playersListBox.SelectedItem == null ? "" : playersListBox.SelectedItem.ToString();
+        string signature = (running ? "1" : "0") + "|" + string.Join("|", players.ToArray());
+        if (signature == lastPlayersSignature && playersListBox.Items.Count > 0)
+        {
+            return;
+        }
+        lastPlayersSignature = signature;
 
         playersListBox.BeginUpdate();
         try
@@ -726,6 +816,15 @@ internal sealed class LauncherForm : Form
             else
             {
                 playersListBox.Items.Add(running ? "Aguardando jogadores..." : "Nenhum jogador.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedPlayer))
+            {
+                int index = playersListBox.Items.IndexOf(selectedPlayer);
+                if (index >= 0)
+                {
+                    playersListBox.SelectedIndex = index;
+                }
             }
         }
         finally
@@ -842,7 +941,7 @@ internal sealed class LauncherForm : Form
         {
             if (logBox.TextLength == 0 || logBox.Text.StartsWith("["))
             {
-                logBox.Text = "Servidor parado. Os logs ao vivo aparecem aqui quando iniciar.";
+                SetRichText(logBox, "Servidor parado. Os logs ao vivo aparecem aqui quando iniciar.", false);
             }
             lastShownLogLength = -1;
             return;
@@ -851,7 +950,7 @@ internal sealed class LauncherForm : Form
         string source = File.Exists(latestLogPath) ? latestLogPath : launcherLogPath;
         if (!File.Exists(source))
         {
-            logBox.Text = "Sem logs ainda.";
+            SetRichText(logBox, "Sem logs ainda.", false);
             return;
         }
 
@@ -863,9 +962,7 @@ internal sealed class LauncherForm : Form
         lastShownLogLength = info.Length;
 
         string text = ReadTail(source, 90);
-        logBox.Text = text;
-        logBox.SelectionStart = logBox.TextLength;
-        logBox.ScrollToCaret();
+        SetRichText(logBox, text, true);
     }
 
     private void RefreshPlayitPanel()
@@ -884,20 +981,25 @@ internal sealed class LauncherForm : Form
         string playit = GetInstalledPlayitCli();
         if (string.IsNullOrWhiteSpace(playit) || !File.Exists(playit))
         {
-            playitStatusBox.Text = "Playit nao instalado.\nUse Tunel externo > Baixar agente > Instalar agente > Login Playit.";
+            SetRichText(playitStatusBox, "Playit nao instalado.\nUse Tunel externo > Baixar agente > Instalar agente > Login Playit.", false);
+            lastPlayitStatusShown = playitStatusBox.Text;
             return;
         }
 
-        if ((DateTime.Now - lastPlayitStatusRefresh).TotalSeconds > 6 || string.IsNullOrWhiteSpace(cachedPlayitStatusText))
+        if ((DateTime.Now - lastPlayitStatusRefresh).TotalSeconds > 15 || string.IsNullOrWhiteSpace(cachedPlayitStatusText))
         {
-            cachedPlayitStatusText = RunPlayitCommand(playit, "status", 2500);
+            cachedPlayitStatusText = RunPlayitCommand(playit, "status", 1200);
             lastPlayitStatusRefresh = DateTime.Now;
         }
         DetectPlayitAddressFromKnownLogs();
         string address = IsValidTunnelAddress(lastPlayitAddress) ? lastPlayitAddress : "ainda nao detectado";
-        playitStatusBox.Text = "Endereco Minecraft: " + address + Environment.NewLine + cachedPlayitStatusText;
-        playitStatusBox.SelectionStart = playitStatusBox.TextLength;
-        playitStatusBox.ScrollToCaret();
+        UpdatePlayitAddressBox();
+        string text = "Endereco Minecraft: " + address + Environment.NewLine + cachedPlayitStatusText;
+        if (!string.Equals(text, lastPlayitStatusShown, StringComparison.Ordinal))
+        {
+            SetRichText(playitStatusBox, text, true);
+            lastPlayitStatusShown = text;
+        }
     }
 
     private void RefreshPlayitLog()
@@ -909,7 +1011,7 @@ internal sealed class LauncherForm : Form
 
         if (!File.Exists(playitLogPath))
         {
-            playitLogBox.Text = "Sem logs do Playit ainda.";
+            SetRichText(playitLogBox, "Sem logs do Playit ainda.", false);
             lastShownPlayitLogLength = -1;
             return;
         }
@@ -923,9 +1025,47 @@ internal sealed class LauncherForm : Form
 
         string text = ReadTail(playitLogPath, 80);
         ExtractPlayitLinks(text);
-        playitLogBox.Text = text;
-        playitLogBox.SelectionStart = playitLogBox.TextLength;
-        playitLogBox.ScrollToCaret();
+        SetRichText(playitLogBox, text, true);
+    }
+
+    private void SetLabelText(Label label, string text)
+    {
+        if (label != null && !string.Equals(label.Text, text, StringComparison.Ordinal))
+        {
+            label.Text = text;
+        }
+    }
+
+    private void SetRichText(RichTextBox box, string text, bool scrollToEnd)
+    {
+        if (box == null || string.Equals(box.Text, text, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        bool focused = box.Focused;
+        int selectionStart = box.SelectionStart;
+        int selectionLength = box.SelectionLength;
+        box.SuspendLayout();
+        try
+        {
+            box.Text = text;
+            if (scrollToEnd && !focused)
+            {
+                box.SelectionStart = box.TextLength;
+                box.SelectionLength = 0;
+                box.ScrollToCaret();
+            }
+            else if (focused)
+            {
+                box.SelectionStart = Math.Min(selectionStart, box.TextLength);
+                box.SelectionLength = Math.Min(selectionLength, box.TextLength - box.SelectionStart);
+            }
+        }
+        finally
+        {
+            box.ResumeLayout();
+        }
     }
 
     private string ReadTail(string path, int maxLines)
@@ -1734,6 +1874,7 @@ internal sealed class LauncherForm : Form
             if (IsValidTunnelAddress(lastPlayitAddress))
             {
                 Clipboard.SetText(lastPlayitAddress);
+                UpdatePlayitAddressBox();
                 AppendPlayitLog("Copied tunnel address: " + lastPlayitAddress);
                 return;
             }
@@ -2020,7 +2161,43 @@ internal sealed class LauncherForm : Form
             if (IsValidTunnelAddress(candidate))
             {
                 lastPlayitAddress = candidate;
+                UpdatePlayitAddressBox();
                 return;
+            }
+        }
+    }
+
+    private void UpdatePlayitAddressBox()
+    {
+        if (playitAddressBox == null)
+        {
+            return;
+        }
+
+        if (playitAddressBox.InvokeRequired)
+        {
+            try
+            {
+                playitAddressBox.BeginInvoke((Action)UpdatePlayitAddressBox);
+            }
+            catch
+            {
+            }
+            return;
+        }
+
+        string text = IsValidTunnelAddress(lastPlayitAddress)
+            ? lastPlayitAddress
+            : "Endereco Playit: aguardando deteccao";
+        if (!string.Equals(playitAddressBox.Text, text, StringComparison.Ordinal))
+        {
+            int selectionStart = playitAddressBox.SelectionStart;
+            int selectionLength = playitAddressBox.SelectionLength;
+            playitAddressBox.Text = text;
+            if (playitAddressBox.Focused)
+            {
+                playitAddressBox.SelectionStart = Math.Min(selectionStart, playitAddressBox.TextLength);
+                playitAddressBox.SelectionLength = Math.Min(selectionLength, playitAddressBox.TextLength - playitAddressBox.SelectionStart);
             }
         }
     }
