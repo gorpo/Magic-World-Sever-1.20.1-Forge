@@ -131,6 +131,13 @@ internal sealed class LauncherForm : Form
         timer = new Timer { Interval = 3000 };
         timer.Tick += delegate { SafeRefreshUi(); };
 
+        SetStyle(
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true
+        );
+        UpdateStyles();
         BuildWindow();
         statusLabel.Text = "Status: pronto";
         detailsLabel.Text = "Clique em Iniciar para ligar o servidor.";
@@ -155,6 +162,7 @@ internal sealed class LauncherForm : Form
 
     private void BuildWindow()
     {
+        SuspendLayout();
         Text = "Magic World Server Launcher";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(1120, 680);
@@ -175,18 +183,17 @@ internal sealed class LauncherForm : Form
             Icon = new Icon(iconPath);
         }
 
-        var root = new Panel { Dock = DockStyle.Fill };
-        if (File.Exists(backgroundPath))
+        var root = new Panel
         {
-            root.BackgroundImage = Image.FromFile(backgroundPath);
-            root.BackgroundImageLayout = ImageLayout.Stretch;
-        }
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(7, 18, 32)
+        };
         Controls.Add(root);
 
         var shade = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(132, 0, 10, 20)
+            BackColor = Color.FromArgb(7, 18, 32)
         };
         root.Controls.Add(shade);
 
@@ -196,7 +203,7 @@ internal sealed class LauncherForm : Form
             ColumnCount = 2,
             RowCount = 1,
             Padding = new Padding(22),
-            BackColor = Color.Transparent
+            BackColor = Color.FromArgb(7, 18, 32)
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 330));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -206,7 +213,7 @@ internal sealed class LauncherForm : Form
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            BackColor = Color.FromArgb(60, 3, 12, 22),
+            BackColor = Color.FromArgb(9, 24, 42),
             Padding = new Padding(14)
         };
         layout.Controls.Add(leftScroll, 0, 0);
@@ -218,7 +225,7 @@ internal sealed class LauncherForm : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Width = 285,
-            BackColor = Color.Transparent
+            BackColor = Color.FromArgb(9, 24, 42)
         };
         leftScroll.Controls.Add(left);
 
@@ -348,7 +355,7 @@ internal sealed class LauncherForm : Form
             Dock = DockStyle.Fill,
             RowCount = 3,
             ColumnCount = 1,
-            BackColor = Color.Transparent,
+            BackColor = Color.FromArgb(7, 18, 32),
             Padding = new Padding(18, 0, 0, 0)
         };
         right.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
@@ -361,7 +368,7 @@ internal sealed class LauncherForm : Form
             Dock = DockStyle.Fill,
             RowCount = 2,
             ColumnCount = 2,
-            BackColor = Color.Transparent,
+            BackColor = Color.FromArgb(7, 18, 32),
             Padding = new Padding(0, 0, 0, 8)
         };
         topBar.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
@@ -407,7 +414,7 @@ internal sealed class LauncherForm : Form
             Dock = DockStyle.Fill,
             RowCount = 6,
             ColumnCount = 1,
-            BackColor = Color.Transparent
+            BackColor = Color.FromArgb(7, 18, 32)
         };
         logSplit.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         logSplit.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
@@ -488,7 +495,7 @@ internal sealed class LauncherForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = Color.Transparent,
+            BackColor = Color.FromArgb(7, 18, 32),
             Padding = new Padding(0, 10, 0, 0)
         };
         commandPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -525,6 +532,7 @@ internal sealed class LauncherForm : Form
         commandPanel.Controls.Add(sendCommandButton, 1, 0);
 
         EnableDoubleBuffering(this);
+        ResumeLayout(true);
     }
 
     private void EnableDoubleBuffering(Control control)
@@ -588,7 +596,7 @@ internal sealed class LauncherForm : Form
             Width = width,
             Height = height,
             Margin = new Padding(0, 0, 0, 12),
-            BackColor = Color.FromArgb(138, 4, 16, 28),
+            BackColor = Color.FromArgb(12, 31, 51),
             BorderStyle = BorderStyle.FixedSingle
         };
     }
@@ -2154,17 +2162,61 @@ internal sealed class LauncherForm : Form
             lastPlayitLink = url.Value.TrimEnd('.', ',', ';', ')', ']');
         }
 
-        MatchCollection addresses = Regex.Matches(line, @"\b([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+(?:\:\d{2,5})?)\b");
-        foreach (Match address in addresses)
+        if (TryExtractPlayitAddressFromText(line))
         {
-            string candidate = address.Value.Trim();
-            if (IsValidTunnelAddress(candidate))
+            return;
+        }
+
+        foreach (Match hex in Regex.Matches(line, @"\b[0-9a-fA-F]{32,}\b"))
+        {
+            string decoded = DecodeHexAscii(hex.Value);
+            if (!string.IsNullOrWhiteSpace(decoded) && TryExtractPlayitAddressFromText(decoded))
             {
-                lastPlayitAddress = candidate;
-                UpdatePlayitAddressBox();
                 return;
             }
         }
+    }
+
+    private bool TryExtractPlayitAddressFromText(string text)
+    {
+        MatchCollection addresses = Regex.Matches(text ?? "", @"\b([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+(?:\:\d{2,5})?)\b");
+        foreach (Match address in addresses)
+        {
+            string candidate = address.Value.Trim();
+            if (!IsValidTunnelAddress(candidate))
+            {
+                continue;
+            }
+
+            lastPlayitAddress = candidate;
+            UpdatePlayitAddressBox();
+            return true;
+        }
+        return false;
+    }
+
+    private string DecodeHexAscii(string hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex) || hex.Length < 2)
+        {
+            return "";
+        }
+
+        var builder = new StringBuilder(hex.Length / 2);
+        for (int i = 0; i + 1 < hex.Length; i += 2)
+        {
+            try
+            {
+                int value = Convert.ToInt32(hex.Substring(i, 2), 16);
+                char c = (char)value;
+                builder.Append(c >= 32 && c <= 126 ? c : ' ');
+            }
+            catch
+            {
+                return "";
+            }
+        }
+        return builder.ToString();
     }
 
     private void UpdatePlayitAddressBox()

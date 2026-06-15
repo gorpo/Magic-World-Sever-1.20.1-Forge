@@ -530,6 +530,10 @@ Abra `Configurar tunel`, faca login/claim no Playit e confirme que existe tunel 
 
 Quando o Playit detectar o tunel, o endereco publico tambem aparece em um campo copiavel no topo da area de logs, acima das telas de `Servidor`, `Playit status` e `Playit logs`.
 
+O launcher tambem tenta recuperar o dominio publico quando ele aparece embutido nos logs tecnicos do Playit. Exemplo de endereco valido: `together-bean.gl.joinmc.link`.
+
+Importante: se o Playit estiver rodando mas ninguem conseguir entrar, confirme primeiro que o servidor Minecraft esta ligado e ouvindo em `127.0.0.1:25565`. Se a porta local estiver fechada, o Playit fica online, mas nao consegue encaminhar jogadores para o servidor.
+
 ### Servidor fica rodando sem eu ver
 
 O launcher foi feito para parar o servidor quando a janela principal fecha. Use sempre o botao `Parar servidor` ou feche o launcher principal.
@@ -539,6 +543,8 @@ O launcher foi feito para parar o servidor quando a janela principal fecha. Use 
 O launcher atual usa buffer duplo e evita redesenhar logs/lista de jogadores quando nada mudou. A lista de jogadores preserva a selecao durante o refresh, entao os botoes `OP`, `Kick`, `Ban`, `Criativo`, `Survival` e `TP destino` continuam clicaveis mesmo com Playit ligado.
 
 O botao `TP destino` teleporta o jogador selecionado para o destino digitado no popup. O destino pode ser outro jogador ou coordenadas no formato `X Y Z`.
+
+Se a janela for redimensionada, a interface usa containers opacos e pintura otimizada para evitar rastros visuais de fundo, duplicacao aparente de paineis e montagem em etapas.
 
 ## Licencas e avisos
 

@@ -94,6 +94,8 @@ Esse pacote complementar contem:
 - Se o botao `Copiar endereco` nao retornar um dominio `joinmc.link`, confirme o claim/login no Playit.
 - Launcher recompilado com menos flicker: buffer duplo, refresh menos agressivo do Playit e lista de jogadores preservando selecao.
 - Endereco publico do Playit aparece em campo copiavel no topo da area de logs, com botao `Copiar`.
+- Detector do Playit tambem decodifica enderecos embutidos nos logs tecnicos, como dominios `joinmc.link` ou `ply.gg`.
+- Layout principal usa containers opacos e pintura otimizada para redimensionar sem rastros ou duplicacao visual dos paineis.
 - `TP destino` teleporta o jogador selecionado para outro jogador ou coordenadas `X Y Z` informadas no popup.
 
 ## Checksum
