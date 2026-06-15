@@ -97,6 +97,7 @@ Esse pacote complementar contem:
 - Detector do Playit tambem decodifica enderecos embutidos nos logs tecnicos, como dominios `joinmc.link` ou `ply.gg`.
 - Layout principal usa containers opacos e pintura otimizada para redimensionar sem rastros ou duplicacao visual dos paineis.
 - `TP destino` teleporta o jogador selecionado para outro jogador ou coordenadas `X Y Z` informadas no popup.
+- Botoes `Desativar mods` e `Ativar mods` movem/restauram os `.jar` entre `mods/` e `mods-disabled/launcher-toggle/` para testar o servidor sem mods.
 
 ## Checksum
 

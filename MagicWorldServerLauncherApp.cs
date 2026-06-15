@@ -317,6 +317,9 @@ internal sealed class LauncherForm : Form
         restartButton.Click += delegate { RestartServer(); };
         left.Controls.Add(restartButton);
 
+        left.Controls.Add(ActionButton("Desativar mods", false, delegate { DisableServerMods(); }));
+        left.Controls.Add(ActionButton("Ativar mods", false, delegate { EnableServerMods(); }));
+
         left.Controls.Add(SectionTitle("2. Tunel externo"));
         left.Controls.Add(ActionButton("Iniciar tunel Playit", true, delegate { StartPlayitTunnel(); SafeRefreshUi(); }));
         left.Controls.Add(ActionButton("Parar tunel Playit", false, delegate { StopPlayitTunnel(); SafeRefreshUi(); }));
@@ -1219,6 +1222,113 @@ internal sealed class LauncherForm : Form
             AppendLauncherLog("Stop failed: " + ex);
             MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void DisableServerMods()
+    {
+        try
+        {
+            if (GetServerProcess() != null)
+            {
+                MessageBox.Show("Pare o servidor antes de desativar mods.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string modsDir = Path.Combine(serverRoot, "mods");
+            string toggleDir = LauncherToggleModsDir();
+            Directory.CreateDirectory(modsDir);
+            Directory.CreateDirectory(toggleDir);
+
+            string[] jars = Directory.GetFiles(modsDir, "*.jar", SearchOption.TopDirectoryOnly);
+            if (jars.Length == 0)
+            {
+                MessageBox.Show("Nao ha mods ativos em mods/ para desativar.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            DialogResult result = MessageBox.Show(
+                "Isso move os mods ativos para mods-disabled\\launcher-toggle e permite iniciar o Forge sem mods.\n\nAviso: abrir um mundo modded sem mods pode remover blocos, itens ou entidades desse mundo. Faca backup antes de entrar no mundo.\n\nContinuar?",
+                Text,
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
+            if (result != DialogResult.Yes)
+            {
+                return;
+            }
+
+            int moved = MoveJarFiles(jars, toggleDir);
+            AppendLauncherLog("Mods disabled by launcher: " + moved);
+            MessageBox.Show(moved + " mod(s) desativado(s). Agora o servidor inicia sem esses mods.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            SafeRefreshUi();
+        }
+        catch (Exception ex)
+        {
+            AppendLauncherLog("Disable mods failed: " + ex);
+            MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void EnableServerMods()
+    {
+        try
+        {
+            if (GetServerProcess() != null)
+            {
+                MessageBox.Show("Pare o servidor antes de ativar mods.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string modsDir = Path.Combine(serverRoot, "mods");
+            string toggleDir = LauncherToggleModsDir();
+            Directory.CreateDirectory(modsDir);
+            Directory.CreateDirectory(toggleDir);
+
+            string[] jars = Directory.GetFiles(toggleDir, "*.jar", SearchOption.TopDirectoryOnly);
+            if (jars.Length == 0)
+            {
+                MessageBox.Show("Nao ha mods desativados pelo launcher para restaurar.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int moved = MoveJarFiles(jars, modsDir);
+            AppendLauncherLog("Mods enabled by launcher: " + moved);
+            MessageBox.Show(moved + " mod(s) restaurado(s) para mods/.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            SafeRefreshUi();
+        }
+        catch (Exception ex)
+        {
+            AppendLauncherLog("Enable mods failed: " + ex);
+            MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private string LauncherToggleModsDir()
+    {
+        return Path.Combine(serverRoot, "mods-disabled", "launcher-toggle");
+    }
+
+    private int MoveJarFiles(string[] files, string destinationDir)
+    {
+        int moved = 0;
+        foreach (string file in files)
+        {
+            if (!File.Exists(file))
+            {
+                continue;
+            }
+
+            string destination = Path.Combine(destinationDir, Path.GetFileName(file));
+            if (File.Exists(destination))
+            {
+                string name = Path.GetFileNameWithoutExtension(file);
+                destination = Path.Combine(destinationDir, name + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".jar");
+            }
+
+            File.Move(file, destination);
+            moved++;
+        }
+        return moved;
     }
 
     private void StopServerForExit()

@@ -546,6 +546,12 @@ O botao `TP destino` teleporta o jogador selecionado para o destino digitado no 
 
 Se a janela for redimensionada, a interface usa containers opacos e pintura otimizada para evitar rastros visuais de fundo, duplicacao aparente de paineis e montagem em etapas.
 
+### Ligar servidor sem mods
+
+Use `Desativar mods` para mover os `.jar` ativos de `mods/` para `mods-disabled/launcher-toggle/`. Use `Ativar mods` para restaurar somente esses mods movidos pelo launcher.
+
+Pare o servidor antes de alternar. Abrir um mundo modded sem mods pode remover blocos, itens ou entidades desse mundo; use para teste ou faca backup antes.
+
 ## Licencas e avisos
 
 - Minecraft e marca da Mojang/Microsoft.
